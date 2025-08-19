@@ -1,0 +1,214 @@
+---
+title: "Aplicación de conceptos de R"
+author: "Andrea Medina"
+date: "2025-07-27"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Contexto
+
+Un concesionario desea perfilar a sus clientes con el fin de mejorar sus estrategias en ventas. Para ello, ha creado una tabla que contiene información sobre aspectos socieconómicos de sus clientes.   
+El Objetivo de esta actividad consiste en practicar el uso de herramientas del lenguaje de programación R para analizar la base de datos denominada *base_concesionario*, y generar un informe que de cuenta de los hallazgos, metodologías y exploración de los datos.
+
+# Actividades
+
+##  Análisis exploratorio de la base de datos
+
+a. Cargar la base de datos denominada *base_concesionario*.  
+```{r}
+library(readxl)
+base_concesionario <- read_excel("base_concesionario.xlsx")
+View(base_concesionario)
+```
+
+b. Realizar una exploración de la base de tal manera que se pueda definir cuántos clientes están registrados, qué variables están asociadas a los clientes. 
+
+```{r}
+base_concesionario<-base_concesionario[-c(1,2), ]
+print(nrow(base_concesionario))
+```
+
+
+c. Identificar y contar los datos faltantes que se tengan en la base de datos.  
+
+```{r}
+sum(is.na(base_concesionario))
+
+```
+
+
+d. Utilizar y aplicar estrategias que permitan identificar registros incompletos, valores inconsistentes y otras características que podrían afectar el análisis de los datos de la base.
+
+```{r}
+which(is.na(base_concesionario), arr.ind = TRUE)
+#Edad
+str(base_concesionario$EDAD)
+base_concesionario$EDAD<-as.numeric(base_concesionario$EDAD)
+
+boxplot(base_concesionario$EDAD,
+        main="Boxplot pata detectar valores atipicos (edad)",
+        ylab="Valores")
+
+#Estatura
+str(base_concesionario$ESTATURA)
+base_concesionario$ESTATURA<-as.numeric(base_concesionario$ESTATURA)
+
+boxplot(base_concesionario$ESTATURA,
+        main="Boxplot pata detectar valores atipicos (estatura)",
+        ylab="Valores")
+
+#Nro de hijos
+str(base_concesionario$`NUMERO DE HIJOS`)
+base_concesionario$`NUMERO DE HIJOS`<-as.numeric(base_concesionario$`NUMERO DE HIJOS`)
+
+boxplot(base_concesionario$`NUMERO DE HIJOS`,
+        main="Boxplot pata detectar valores atipicos (Nro de hijos)",
+        ylab="Valores")
+
+#Salario
+str(base_concesionario$SALARIO)
+base_concesionario$SALARIO<-as.numeric(base_concesionario$SALARIO)
+
+boxplot(base_concesionario$SALARIO,
+        main="Boxplot pata detectar valores atipicos (salario)",
+        ylab="Valores")
+```
+
+
+##  Análisis de la variable "marca de auto"
+a. Evaluar la variable "Marca de auto" y determinar si hay datos faltantes, en caso de que los haya, se requiere proponer una metodología que permita tratar con este tipo de datos.  
+
+```{r}
+sum(is.na(base_concesionario$`MARCA DE AUTO`))
+
+#Como posible solucion se propone rellenar los valores faltantes con la moda
+
+moda<- function(x){
+  tabla<-table(x)
+  names(tabla)[which.max(tabla)]
+}
+xxx<-moda(base_concesionario$`MARCA DE AUTO`)
+
+base_concesionario$`MARCA DE AUTO`[is.na(base_concesionario$`MARCA DE AUTO`)]<-xxx
+```
+
+
+b. Crear una tabla de frecuencias que permita determinar la preferencia en marcas de autos de los clientes.  
+
+```{r}
+tabla_frec<-table(base_concesionario$`MARCA DE AUTO`)
+
+print(tabla_frec)
+```
+
+
+d. Haciendo uso de la librería *ggplot2* de R, generar un gráfico de barras y de sectores que permita visualizar la distribución de las marcas de autos entre los clientes. 
+
+```{r}
+library(ggplot2)
+library(dplyr)
+
+
+# Calculamos las frecuencias
+datos_marcas <- base_concesionario %>%
+  count(`MARCA DE AUTO`, name = "cantidad") %>%
+  mutate(porcentaje = round(cantidad/sum(cantidad)*100, 1)) %>%
+  arrange(desc(cantidad))
+
+# Ver los datos procesados
+head(datos_marcas)
+
+ggplot(datos_marcas, aes(x = reorder(`MARCA DE AUTO`, cantidad), y = cantidad)) +
+  geom_bar(stat = "identity", fill = "#1f78b4") +
+  geom_text(aes(label = paste0(cantidad, " (", porcentaje, "%)")), 
+            hjust = 1.1, color = "white", size = 3.5) +
+  labs(title = "Distribución de Marcas de Autos entre Clientes",
+       subtitle = "Con cantidad y porcentaje",
+       x = NULL, 
+       y = "Número de clientes") +
+  theme_minimal() +
+  coord_flip() +
+  theme(panel.grid.major.y = element_blank(),
+        panel.grid.minor.y = element_blank())
+
+# Calculamos posiciones para las etiquetas
+datos_marcas <- datos_marcas %>% 
+  mutate(posicion = cumsum(porcentaje) - 0.5*porcentaje)
+
+ggplot(datos_marcas, aes(x = "", y = porcentaje, fill = reorder(`MARCA DE AUTO`, -cantidad))) +
+  geom_bar(stat = "identity", width = 1, color = "white") +
+  coord_polar("y", start = 0) +
+  geom_text(aes(y = posicion, 
+                label = ifelse(porcentaje > 5, paste0(`MARCA DE AUTO`, "\n", porcentaje, "%"), "")),
+            color = "white", size = 3) +
+  labs(title = "Distribución porcentual de marcas de autos",
+       fill = "Marca") +
+  scale_fill_brewer(palette = "Set3") +
+  theme_void() +
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = 0.5))
+```
+
+
+e. Proporcionar una conclusión a partir de la información que se haya extraído en el desarrollo de los numerales anteriores.
+
+La marca de auto mas usada es audi, la menos usada es Ford
+
+##  Análisis de la variable edad
+
+a. Verificar si la variable edad está correctamente definida como tipo *numérico*.  
+
+```{r}
+is.numeric(base_concesionario$EDAD) 
+```
+
+b. Identificar algún tipo de anomalía en la variable y si es el caso corregirla. 
+
+```{r}
+#No hay anomalias en la variable edad como se observa en el boxplot para identificar datos atipicos.Sin embargo hay un NA, Para corregirlo se propone rellenar con la media
+mediaa<-mean(base_concesionario$EDAD, na.rm = T)
+base_concesionario$EDAD[is.na(base_concesionario$EDAD)]<-mediaa
+
+```
+
+
+c. Haciendo uso de la librería *ggplot2* de R, realizar un histogramas de la variable edad y describir características de distribución de la variable.
+```{r}
+library(ggplot2)
+ggplot(base_concesionario, aes(x = EDAD)) +
+  geom_histogram() +
+  ggtitle("Histograma variable edad") +
+  xlab("Valores") + 
+  ylab("Frecuencia")
+```
+La edad mas frecuente son los 30 años y 40 y tantos
+
+##  Análisis de la variable sexo  
+a. Revisar la consistencia de la variable "SEXO" y realizar correcciones en caso de encontrar valores inusuales o inconsistentes. 
+
+```{r}
+base_concesionario$SEXO <- tolower(base_concesionario$SEXO)  
+
+
+base_concesionario$SEXO[base_concesionario$SEXO %in% c("m", "hombre")] <- "hombre"
+
+base_concesionario$SEXO[base_concesionario$SEXO %in% c("f", "mujer")] <- "mujer"
+# Opcional: verificar el resultado
+table(base_concesionario$SEXO)
+```
+
+
+b. Crear una tabla de frecuencias y extraer conclusiones sobre la proporción de hombres y de mujeres en el conjunto de clientes.
+
+```{r}
+tabla_frec1 <- table(base_concesionario$SEXO)
+print(tabla_frec1)
+```
+Hay mas hombres que mujeres en el data frame
+
+# Entrega de la actividad.
+Los resultados de esta actividad se deben enviar al correo **atrillerasm@unbosque.edu.co** en la fecha definida para la entrega de talleres del corte I.
